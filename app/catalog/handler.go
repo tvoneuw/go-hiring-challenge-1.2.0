@@ -8,6 +8,7 @@ import (
 )
 
 type Response struct {
+	Total    int64     `json:"total"`
 	Products []Product `json:"products"`
 }
 
@@ -18,7 +19,7 @@ type Product struct {
 }
 
 type ProductFetcher interface {
-	GetAllProducts() ([]models.Product, error)
+	GetAllProducts(offset, limit int) ([]models.Product, int64, error)
 }
 
 type CatalogHandler struct {
@@ -32,7 +33,10 @@ func NewCatalogHandler(r ProductFetcher) *CatalogHandler {
 }
 
 func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
-	res, err := h.repo.GetAllProducts()
+	// Parse pagination parameters
+	offset, limit := parseOffsetLimit(r)
+
+	res, total, err := h.repo.GetAllProducts(offset, limit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -52,6 +56,7 @@ func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	response := Response{
+		Total:    total,
 		Products: products,
 	}
 
