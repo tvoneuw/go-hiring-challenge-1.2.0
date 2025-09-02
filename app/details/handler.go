@@ -1,10 +1,10 @@
 package details
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
+	"github.com/mytheresa/go-hiring-challenge/app/api"
 	"github.com/mytheresa/go-hiring-challenge/models"
 )
 
@@ -40,7 +40,7 @@ func (h *ProductDetailsHandler) HandleGet(w http.ResponseWriter, r *http.Request
 
 	res, err := h.repo.GetProductByCode(code)
 	if err != nil {
-		http.Error(w, "product not found", http.StatusNotFound)
+		api.ErrorResponse(w, http.StatusNotFound, "product not found")
 		return
 	}
 
@@ -59,18 +59,11 @@ func (h *ProductDetailsHandler) HandleGet(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	response := Response{
+	// Return the products as a JSON response
+	api.OKResponse(w, Response{
 		Code:     res.Code,
 		Price:    res.Price.InexactFloat64(),
 		Category: res.Category.Name,
 		Variants: variants,
-	}
-
-	// Return the products as a JSON response
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	})
 }

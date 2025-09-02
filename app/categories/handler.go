@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/mytheresa/go-hiring-challenge/app/api"
 	"github.com/mytheresa/go-hiring-challenge/models"
 )
 
@@ -36,7 +37,7 @@ func (h *CategoriesHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	res, err := h.repo.GetAllCategories()
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -50,56 +51,44 @@ func (h *CategoriesHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return the products as a JSON response
-	w.Header().Set("Content-Type", "application/json")
-
-	response := Response{
+	api.OKResponse(w, Response{
 		Categories: categories,
-	}
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+	})
 }
 
 func (h *CategoriesHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	var input models.Category
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		api.ErrorResponse(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	// Validate category input
 	if err := validateCategoryInput(&input); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		api.ErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// Check code uniqueness
 	category, err := h.repo.GetCategoryByCode(input.Code)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if category != nil {
-		http.Error(w, "category with this code already exists", http.StatusConflict)
+		api.ErrorResponse(w, http.StatusConflict, "category with this code already exists")
 		return
 	}
 
 	// Create effective category
 	if err := h.repo.CreateCategory(&input); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		api.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	// Response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(Category{
+	api.OKResponse(w, Category{
 		Code: input.Code,
 		Name: input.Name,
-	}); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	})
 }
