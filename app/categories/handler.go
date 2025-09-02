@@ -18,6 +18,8 @@ type Category struct {
 
 type CategoriesFetcher interface {
 	GetAllCategories() ([]models.Category, error)
+	CreateCategory(c *models.Category) error
+	GetCategoryByCode(code string) (*models.Category, error)
 }
 
 type CategoriesHandler struct {
@@ -59,4 +61,45 @@ func (h *CategoriesHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+}
+
+func (h *CategoriesHandler) HandlePost(w http.ResponseWriter, r *http.Request) {
+	var input models.Category
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate category input
+	if err := validateCategoryInput(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Check code uniqueness
+	category, err := h.repo.GetCategoryByCode(input.Code)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if category != nil {
+		http.Error(w, "category with this code already exists", http.StatusConflict)
+		return
+	}
+
+	// Create effective category
+	if err := h.repo.CreateCategory(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(Category{
+		Code: input.Code,
+		Name: input.Name,
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

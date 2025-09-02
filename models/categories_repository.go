@@ -1,6 +1,8 @@
 package models
 
 import (
+	"errors"
+
 	"gorm.io/gorm"
 )
 
@@ -22,4 +24,21 @@ func (r *CategoriesRepository) GetAllCategories() ([]Category, error) {
 	}
 
 	return categories, nil
+}
+
+func (r *CategoriesRepository) CreateCategory(c *Category) error {
+	return r.db.Create(c).Error
+}
+
+func (r *CategoriesRepository) GetCategoryByCode(code string) (*Category, error) {
+	var category Category
+
+	if err := r.db.Where("categories.code = ?", code).First(&category).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &category, nil
 }

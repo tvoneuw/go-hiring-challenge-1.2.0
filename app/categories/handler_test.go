@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/mytheresa/go-hiring-challenge/app/categories"
@@ -12,12 +13,28 @@ import (
 )
 
 type mockCategoryRepo struct {
-	categories []models.Category
-	err        error
+	categories  []models.Category
+	existing    *models.Category
+	genericErr  error
+	specificErr error
 }
 
 func (m *mockCategoryRepo) GetAllCategories() ([]models.Category, error) {
 	return m.categories, m.genericErr
+}
+
+func (m *mockCategoryRepo) CreateCategory(c *models.Category) error {
+	return m.genericErr
+}
+
+func (m *mockCategoryRepo) GetCategoryByCode(code string) (*models.Category, error) {
+	return m.existing, m.specificErr
+}
+
+type mockError struct{}
+
+func (e *mockError) Error() string {
+	return "repo mock error"
 }
 
 func TestHandleGetCategories(t *testing.T) {
@@ -70,6 +87,75 @@ func TestHandleGetCategories(t *testing.T) {
 				}
 				assert.Equal(t, tt.wantCount, len(resp.Categories))
 			}
+		})
+	}
+}
+
+func TestHandlePostCategories(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		repo       *mockCategoryRepo
+		wantStatus int
+	}{
+		{
+			name: "create_category_error",
+			body: `{"code":"CAT001","name":"Bags"}`,
+			repo: &mockCategoryRepo{
+				genericErr: &mockError{},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "get_code_error",
+			body: `{"code":"CAT001","name":"Bags"}`,
+			repo: &mockCategoryRepo{
+				specificErr: &mockError{},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "success",
+			body:       `{"code":"CAT001","name":"Bags"}`,
+			repo:       &mockCategoryRepo{},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "missing_code",
+			body:       `{"name":"Accessories"}`,
+			repo:       &mockCategoryRepo{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "missing_name",
+			body:       `{"code":"acc"}`,
+			repo:       &mockCategoryRepo{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "duplicate",
+			body: `{"code":"CAT001","name":"Clothing"}`,
+			repo: &mockCategoryRepo{
+				existing: &models.Category{Code: "CAT001", Name: "Clothing"},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := categories.NewCategoriesHandler(tt.repo)
+
+			req := httptest.NewRequest("POST", "/categories", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+
+			handler.HandlePost(rec, req)
+
+			res := rec.Result()
+			defer res.Body.Close()
+
+			assert.Equal(t, tt.wantStatus, res.StatusCode, "Unexpected status code")
 		})
 	}
 }
