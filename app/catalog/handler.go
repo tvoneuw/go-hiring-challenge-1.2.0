@@ -12,8 +12,9 @@ type Response struct {
 }
 
 type Product struct {
-	Code  string  `json:"code"`
-	Price float64 `json:"price"`
+	Code     string  `json:"code"`
+	Price    float64 `json:"price"`
+	Category string  `json:"category"`
 }
 
 type ProductFetcher interface {
@@ -41,8 +42,9 @@ func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	products := make([]Product, len(res))
 	for i, p := range res {
 		products[i] = Product{
-			Code:  p.Code,
-			Price: p.Price.InexactFloat64(),
+			Code:     p.Code,
+			Price:    p.Price.InexactFloat64(),
+			Category: p.Category.Name,
 		}
 	}
 
