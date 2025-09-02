@@ -16,11 +16,15 @@ type Product struct {
 	Price float64 `json:"price"`
 }
 
-type CatalogHandler struct {
-	repo *models.ProductsRepository
+type ProductFetcher interface {
+	GetAllProducts() ([]models.Product, error)
 }
 
-func NewCatalogHandler(r *models.ProductsRepository) *CatalogHandler {
+type CatalogHandler struct {
+	repo ProductFetcher
+}
+
+func NewCatalogHandler(r ProductFetcher) *CatalogHandler {
 	return &CatalogHandler{
 		repo: r,
 	}
