@@ -41,3 +41,15 @@ func (r *ProductsRepository) GetAllProducts(offset, limit int, category string, 
 
 	return products, total, nil
 }
+
+func (r *ProductsRepository) GetProductByCode(code string) (*Product, error) {
+	var product Product
+
+	query := r.db.Model(&Product{}).Preload("Variants").Preload("Category").Where("products.code = ?", code)
+
+	if err := query.First(&product).Error; err != nil {
+		return nil, err
+	}
+
+	return &product, nil
+}
