@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func parseOffsetLimit(r *http.Request) (offset int, limit int) {
+func parsePaginationParams(r *http.Request) (offset int, limit int) {
 	// Default values
 	offset = 0
 	limit = 10
@@ -37,4 +37,16 @@ func parseOffsetLimit(r *http.Request) (offset int, limit int) {
 	}
 
 	return offset, limit
+}
+
+func parseFilters(r *http.Request) (category string, priceLt *float64) {
+	category = r.URL.Query().Get("category")
+
+	if p := r.URL.Query().Get("price_lt"); p != "" {
+		if v, err := strconv.ParseFloat(p, 64); err == nil {
+			priceLt = &v
+		}
+	}
+
+	return category, priceLt
 }

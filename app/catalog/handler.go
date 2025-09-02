@@ -18,15 +18,15 @@ type Product struct {
 	Category string  `json:"category"`
 }
 
-type ProductFetcher interface {
-	GetAllProducts(offset, limit int) ([]models.Product, int64, error)
+type ProductsFetcher interface {
+	GetAllProducts(offset, limit int, category string, priceLt *float64) ([]models.Product, int64, error)
 }
 
 type CatalogHandler struct {
-	repo ProductFetcher
+	repo ProductsFetcher
 }
 
-func NewCatalogHandler(r ProductFetcher) *CatalogHandler {
+func NewCatalogHandler(r ProductsFetcher) *CatalogHandler {
 	return &CatalogHandler{
 		repo: r,
 	}
@@ -34,9 +34,12 @@ func NewCatalogHandler(r ProductFetcher) *CatalogHandler {
 
 func (h *CatalogHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 	// Parse pagination parameters
-	offset, limit := parseOffsetLimit(r)
+	offset, limit := parsePaginationParams(r)
 
-	res, total, err := h.repo.GetAllProducts(offset, limit)
+	// Parse filters
+	category, priceLt := parseFilters(r)
+
+	res, total, err := h.repo.GetAllProducts(offset, limit, category, priceLt)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
