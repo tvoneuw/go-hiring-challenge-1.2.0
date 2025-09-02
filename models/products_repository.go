@@ -14,10 +14,42 @@ func NewProductsRepository(db *gorm.DB) *ProductsRepository {
 	}
 }
 
-func (r *ProductsRepository) GetAllProducts() ([]Product, error) {
+func (r *ProductsRepository) GetAllProducts(offset, limit int, category string, priceLt *float64) ([]Product, int64, error) {
 	var products []Product
-	if err := r.db.Preload("Variants").Find(&products).Error; err != nil {
+	var total int64
+
+	query := r.db.Model(&Product{}).Preload("Variants").Preload("Category")
+
+	// Apply filters
+	if category != "" {
+		query = query.Joins("JOIN categories ON categories.id = products.category_id").Where("categories.name = ?", category)
+	}
+
+	if priceLt != nil {
+		query = query.Where("products.price < ?", *priceLt)
+	}
+
+	// Get total count
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated products
+	if err := query.Offset(offset).Limit(limit).Find(&products).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return products, total, nil
+}
+
+func (r *ProductsRepository) GetProductByCode(code string) (*Product, error) {
+	var product Product
+
+	query := r.db.Model(&Product{}).Preload("Variants").Preload("Category").Where("products.code = ?", code)
+
+	if err := query.First(&product).Error; err != nil {
 		return nil, err
 	}
-	return products, nil
+
+	return &product, nil
 }
